@@ -21,6 +21,8 @@ backend:
 frontend:
   replicaCount: 1
   tag: "1.0"
+  extraEnv:
+    RELEASE: "1.1"
   service:
     type: NodePort
     nodePort: 30081
