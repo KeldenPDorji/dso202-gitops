@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "task-tracker values",
+  "$comment": "File: charts/tasktracker/values.schema.json | Assignment: DSO202 Assignment 4 | Descriptor: Unit III 3.2 - values validation | Purpose: rejects a bad value before any template renders. JSON has no comments, so this keyword is the file header.",
+  "title": "tasktracker values",
   "description": "Validated by Helm on every lint, template, install and upgrade, before any template is rendered.",
   "type": "object",
   "required": [
