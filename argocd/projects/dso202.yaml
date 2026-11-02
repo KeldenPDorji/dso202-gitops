@@ -32,8 +32,9 @@ spec:
   clusterResourceWhitelist: []
 
   # Only these namespaced kinds may be deployed. The list is built from the
-  # output of 'helm template' (Task 3) and must name exactly the kinds the chart
-  # renders, including the Job used as a hook. ResourceQuota, LimitRange, Role,
+  # output of 'helm template' (Task 3): the kinds the chart renders, including
+  # the Job used as a hook, plus the two the Deployments create at run time so
+  # that Pod logs can be read (Task 6). ResourceQuota, LimitRange, Role,
   # RoleBinding, and SealedSecret are absent on purpose: they belong to the
   # platform layer, so the workload project cannot loosen its own limits.
   namespaceResourceWhitelist:
@@ -48,5 +49,12 @@ spec:
       kind: PersistentVolumeClaim
     - group: batch
       kind: Job
+    # Added after Task 6: the chart renders neither kind, but Argo CD hides live
+    # resources the project does not permit, so without these two the resource
+    # tree has no Pods and 'get logs' has nothing to read.
+    - group: apps
+      kind: ReplicaSet
+    - group: ""
+      kind: Pod
     # Removed from Listing 8: StatefulSet and ServiceAccount. This chart renders
-    # neither, and the list must name exactly the kinds it renders.
+    # neither.
