@@ -17,6 +17,9 @@ database:
 backend:
   replicaCount: 1
   tag: "1.0"
+  extraEnv:
+    RELEASE: "1.2"
+    DB_HOST: "tasktracker-database"
 
 frontend:
   replicaCount: 1
