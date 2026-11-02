@@ -1,0 +1,108 @@
+# =============================================================================
+# File        : charts/tasktracker/values.yaml
+# Assignment  : DSO202 Assignment 4
+# Descriptor  : Unit III 3.2 - Helm values as the chart's configuration interface
+# Purpose     : Defaults only. Everything that differs between environments is
+#               set in environments/<env>/values.yaml, never here and never in
+#               a template.
+#
+# Chart contract (section 7 of the brief):
+#   C1  every tier's image repository and tag are values below
+#   C2  every tier accepts extraEnv, so a new variable is a values change
+#   C3  no Secret is rendered; existingSecret names one made by Sealed Secrets
+#   C10 the frontend Service type and node port are values
+# =============================================================================
+
+# --- naming -----------------------------------------------------------------
+nameOverride: ""
+fullnameOverride: ""
+
+# --- images (C1) ------------------------------------------------------------
+image:
+  # Docker Hub account that publishes all three tier images.
+  registry: sarojsanyasi
+  # Never Always: Task 9 rebuilds the cluster, and the troubleshooting guide
+  # loads images with 'kind load docker-image' when the pull limit is reached.
+  pullPolicy: IfNotPresent
+
+# --- credentials (C3) -------------------------------------------------------
+# The chart renders NO Secret. This names a Secret that already exists in the
+# namespace, created by the Sealed Secrets controller from the SealedSecret
+# committed at platform/<env>/tasktracker-credentials.sealed.yaml.
+# It must supply DB_USER, DB_PASSWORD, POSTGRES_USER and POSTGRES_PASSWORD.
+existingSecret: tasktracker-credentials
+
+# --- shared non-sensitive configuration -------------------------------------
+config:
+  # No default on purpose: the chart refuses to render until an environment is
+  # chosen here or through global.environment.
+  environment: ""
+  dbName: taskdb
+  appPort: 8080
+  corsOrigin: "*"
+  # Empty means the backend Service's cluster-internal address. The page's
+  # JavaScript runs in the browser, which has no cluster DNS, so as in
+  # Assignment 1 CRUD is exercised through a port-forwarded backend.
+  backendUrl: ""
+
+# --- database tier ----------------------------------------------------------
+database:
+  image: dso202-db
+  tag: "1.0"
+  storage: 1Gi
+  # C2: additional environment variables, as plain key/value pairs.
+  extraEnv: {}
+  resources:
+    requests:
+      cpu: 200m
+      memory: 192Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+
+# --- backend tier -----------------------------------------------------------
+backend:
+  replicaCount: 1
+  image: dso202-backend
+  tag: "1.0"
+  # C2: a variable added here reaches the Pod with no template change. A name
+  # already supplied by the ConfigMap (for example DB_HOST) is overridden.
+  extraEnv: {}
+  service:
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# --- frontend tier ----------------------------------------------------------
+frontend:
+  replicaCount: 1
+  image: dso202-frontend
+  tag: "1.0"
+  extraEnv: {}
+  service:
+    # C10: NodePort in both environments, with the port number as a value.
+    type: NodePort
+    port: 8080
+    nodePort: 30080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# --- extras -----------------------------------------------------------------
+# Extra annotations added to every Pod template.
+podAnnotations: {}
+
+# Values a parent chart would share with its subcharts. Declared so that
+# .Values.global.environment can be read safely when this chart is installed on
+# its own; reading a key under a map that does not exist is a render error.
+global:
+  environment: ""

@@ -1,0 +1,138 @@
+{{- /*
+=============================================================================
+File        : charts/tasktracker/templates/database.yaml
+Assignment  : DSO202 Assignment 4
+Descriptor  : Unit IV 4.3.2 (sync waves), 4.3.3 (health checks); Unit III 3.2
+Purpose     : The database tier: its PersistentVolumeClaim, its headless
+              Service, and its Deployment.
+
+Contract    : C3 credentials come from existingSecret, never from this chart
+              C4 a readiness probe gates the wave that follows
+              C5 sync-wave "0": the first workload wave
+              C7 requests and limits on every container
+=============================================================================
+*/}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-db" (include "tasktracker.fullname" .) }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    {{- include "tasktracker.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.database.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # The ConfigMap sets DB_HOST to this same name, derived the same way, so the
+  # backend's connection target and the Service's name cannot disagree.
+  name: {{ printf "%s-db" (include "tasktracker.fullname" .) }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    {{- include "tasktracker.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  clusterIP: None
+  selector:
+    {{- include "tasktracker.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "%s-db" (include "tasktracker.fullname" .) }}
+  annotations:
+    # C5 - wave 0. Argo CD waits for this Deployment to become Healthy before
+    # it applies wave 1 (the backend), which is what makes the ordering real
+    # rather than hopeful.
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    {{- include "tasktracker.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  # The PVC is ReadWriteOnce, so a RollingUpdate would try to start a second
+  # Pod holding the same volume before releasing the first.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "tasktracker.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        {{- include "tasktracker.labels" . | nindent 8 }}
+        app.kubernetes.io/component: database
+      annotations:
+        # A hash of the rendered ConfigMap. A ConfigMap change alone does not
+        # change a Pod template, so without this a configuration change would
+        # never restart the Pods that read it.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ include "tasktracker.image" (dict "root" $ "tier" .Values.database) | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tasktracker.fullname" . }}
+                  key: POSTGRES_DB
+            # C3 - from the Secret the Sealed Secrets controller created.
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_PASSWORD
+            {{- range $k, $v := .Values.database.extraEnv }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          # C4 - pg_isready asks PostgreSQL whether it is accepting
+          # connections. A TCP check would pass while the server was still
+          # running its init scripts, and the backend would then fail.
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            {{- toYaml .Values.database.resources | nindent 12 }}
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-db" (include "tasktracker.fullname" .) }}

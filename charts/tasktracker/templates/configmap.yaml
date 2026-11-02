@@ -1,0 +1,30 @@
+{{- /*
+=============================================================================
+File        : charts/tasktracker/templates/configmap.yaml
+Assignment  : DSO202 Assignment 4
+Descriptor  : Unit I 1.2.5 - ConfigMaps; Unit III 3.2 - templates
+Purpose     : Non-sensitive configuration for all three tiers.
+
+dbName is written twice, as DB_NAME for the backend and POSTGRES_DB for the
+official PostgreSQL image, so the two conventions cannot drift apart. Credentials
+are not here: they come from existingSecret (contract C3).
+=============================================================================
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tasktracker.fullname" . }}
+  labels:
+    {{- include "tasktracker.labels" . | nindent 4 }}
+data:
+  # consumed by the backend tier
+  DB_HOST: {{ printf "%s-db" (include "tasktracker.fullname" .) | quote }}
+  DB_PORT: "5432"
+  DB_NAME: {{ .Values.config.dbName | quote }}
+  APP_PORT: {{ .Values.config.appPort | quote }}
+  CORS_ORIGIN: {{ .Values.config.corsOrigin | quote }}
+  # consumed by the database tier (official image variable names)
+  POSTGRES_DB: {{ .Values.config.dbName | quote }}
+  # consumed by the frontend tier
+  # Defaults to the backend Service's cluster-internal address, as in Assignment 1.
+  BACKEND_URL: {{ .Values.config.backendUrl | default (printf "http://%s-backend:%v" (include "tasktracker.fullname" .) .Values.backend.service.port) | quote }}

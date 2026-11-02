@@ -1,0 +1,26 @@
+# =============================================================================
+# File        : environments/staging/values.yaml
+# Assignment  : DSO202 Assignment 4
+# Descriptor  : Unit III 3.2 - values; Unit IV 4.3.1 - Helm sources
+# Purpose     : Everything that differs in staging. The chart itself is identical in
+#               both environments. Image tags are stated here because a release
+#               is a change to this file (contract C1).
+# =============================================================================
+existingSecret: tasktracker-credentials
+
+config:
+  environment: staging
+
+database:
+  tag: "1.0"
+
+backend:
+  replicaCount: 1
+  tag: "1.0"
+
+frontend:
+  replicaCount: 1
+  tag: "1.0"
+  service:
+    type: NodePort
+    nodePort: 30081
