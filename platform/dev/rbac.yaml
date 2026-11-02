@@ -1,0 +1,44 @@
+# =============================================================================
+# File        : platform/dev/rbac.yaml
+# Assignment  : DSO202 Assignment 4
+# Descriptor  : Unit II 2.3 - RBAC
+# Purpose     : The Assignment 2 read-only identity for dso202-dev. Secrets are
+#               in no rule: reading one is the same as holding the credential.
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-viewer
+  namespace: dso202-dev
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-and-service-reader
+  namespace: dso202-dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  # resourceNames limits this rule to the chart's own ConfigMap.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["tasktracker"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-viewer-binding
+  namespace: dso202-dev
+subjects:
+  - kind: ServiceAccount
+    name: app-viewer
+    namespace: dso202-dev
+roleRef:
+  kind: Role
+  name: pod-and-service-reader
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,59 @@
+# =============================================================================
+# File        : platform/staging/quota-and-limits.yaml
+# Assignment  : DSO202 Assignment 4
+# Descriptor  : Unit I 1.5.3 - namespace resource governance
+# Purpose     : The Assignment 2 ResourceQuota and LimitRange for dso202-staging.
+#
+# Two values differ from Assignment 2, because this brief requires them:
+#   services.nodeports  "0" -> "1"   the frontend is a NodePort here (C10); there
+#                                    is no Ingress in this assignment (C9)
+#   min cpu/memory      50m/64Mi -> 10m/16Mi   the smoke test in Listing 13
+#                                    requests 10m/16Mi and would be rejected
+#
+# Peak load: 3 tiers at 1 replica, one rollout surge Pod each for backend and
+# frontend, and the smoke-test Job: 510m/592Mi requested, 1950m/1184Mi limited.
+# The ceilings stay as in Assignment 2 and sit above that peak.
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dso202-quota
+  namespace: dso202-staging
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 2Gi
+    limits.cpu: "4"
+    limits.memory: 3Gi
+    pods: "12"
+    services: "6"
+    persistentvolumeclaims: "4"
+    requests.storage: 4Gi
+    services.nodeports: "1"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: dso202-limits
+  namespace: dso202-staging
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      default:
+        cpu: 500m
+        memory: 256Mi
+      min:
+        cpu: 10m
+        memory: 16Mi
+      max:
+        cpu: "1"
+        memory: 512Mi
+    - type: PersistentVolumeClaim
+      min:
+        storage: 500Mi
+      max:
+        storage: 2Gi
