@@ -26,7 +26,7 @@ spec:
     # A tag always resolves to the same commit, so this Application cannot
     # change meaning until a commit edits this line. Promotion to staging is
     # therefore a reviewed change to this value, followed by a manual sync.
-    targetRevision: v1.1.0
+    targetRevision: v1.2.0
     path: charts/tasktracker
     helm:
       releaseName: tasktracker
