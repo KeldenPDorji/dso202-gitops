@@ -24,4 +24,4 @@ data:
     # Task 6, step 4 adds the line below. Until it is present, container logs
     # are hidden from this account: since Argo CD 3.0, logs are a separate RBAC
     # resource and are no longer implied by read access to the application.
-    # p, reviewer, logs, get, dso202/*, allow
+    p, reviewer, logs, get, dso202/*, allow
